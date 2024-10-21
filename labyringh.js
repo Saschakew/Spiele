@@ -30,6 +30,9 @@ const grassImg = new Image();
 grassImg.src = 'grass.png';
 const mushroomImg = new Image();
 mushroomImg.src = 'pilz.png';
+const grassBackgroundImg = new Image();
+grassBackgroundImg.src = 'grass_background.png';
+grassBackgroundImg.onload = imageLoaded;
 
 // Zähler für geladene Bilder
 let loadedImages = 0;
@@ -99,6 +102,11 @@ function initGame() {
     updateDisplay();
     startTimer();  // Dies startet sowohl den Spieltimer als auch die Katzenbewegung
     displayHighscores();
+
+    // Adjust canvas size
+    const canvas = document.getElementById('gameCanvas');
+    canvas.width = GRID_SIZE * CELL_SIZE;
+    canvas.height = GRID_SIZE * CELL_SIZE;
 }
 
 // Hindernisse platzieren
@@ -254,33 +262,47 @@ function displayHighscores() {
     const highscores = JSON.parse(localStorage.getItem('highscores')) || [];
     highscores.forEach((entry, index) => {
         const li = document.createElement('li');
-        li.textContent = `${index + 1}. ${entry.name}: ${entry.score}`;
+        li.textContent = `${entry.name}: ${entry.score}`;
         highscoresList.appendChild(li);
     });
 }
 
-// Spielfeld zeichnen (aktualisiert für Superkräfte)
+// Updated render function without rotations
 function render() {
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
-    // Spielfeld löschen
+    // Clear the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Hindernisse zeichnen
+    // Draw the grass background
+    ctx.fillStyle = '#90EE90';  // Light green
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw obstacles
     obstacles.forEach(obs => {
         ctx.drawImage(obs.type === 'rock' ? rockImg : grassImg, obs.x * CELL_SIZE, obs.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
     });
     
-    // Pilz zeichnen
+    // Draw mushroom with pulsing effect
     if (mushroom) {
-        ctx.drawImage(mushroomImg, mushroom.x * CELL_SIZE, mushroom.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        ctx.save();
+        ctx.translate(mushroom.x * CELL_SIZE + CELL_SIZE / 2, mushroom.y * CELL_SIZE + CELL_SIZE / 2);
+        ctx.scale(1 + mushroomPulse * 0.1, 1 + mushroomPulse * 0.1);
+        ctx.drawImage(mushroomImg, -CELL_SIZE / 2, -CELL_SIZE / 2, CELL_SIZE, CELL_SIZE);
+        ctx.restore();
+        
+        // Update mushroom pulse
+        mushroomPulse += 0.1 * mushroomPulseDirection;
+        if (mushroomPulse >= 1 || mushroomPulse <= 0) {
+            mushroomPulseDirection *= -1;
+        }
     }
     
-    // Käse zeichnen
+    // Draw cheese
     ctx.drawImage(cheeseImg, cheese.x * CELL_SIZE, cheese.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
     
-    // Mäuse zeichnen (mit Blink-Effekt, wenn Superkräfte aktiv sind)
+    // Draw mice (with blinking effect when superpowers are active)
     if (!superPowerActive1 || mouseVisible1) {
         ctx.drawImage(mouse1Img, mouse1.x * CELL_SIZE, mouse1.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
     }
@@ -288,13 +310,28 @@ function render() {
         ctx.drawImage(mouse2Img, mouse2.x * CELL_SIZE, mouse2.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
     }
     
-    // Katze zeichnen
+    // Draw cat
     ctx.drawImage(catImg, cat.x * CELL_SIZE, cat.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
     
-    // Anzeige der verbleibenden Katzenschritte
-    ctx.fillStyle = 'black';
-    ctx.font = '20px Arial';
-    ctx.fillText(`Katzenschritte: ${catSteps}`, 10, canvas.height - 10);
+    // Draw cheese eaten animation
+    if (cheeseEatenAnimation) {
+        ctx.globalAlpha = cheeseEatenAnimation.opacity;
+        ctx.fillStyle = 'yellow';
+        ctx.beginPath();
+        ctx.arc(cheeseEatenAnimation.x, cheeseEatenAnimation.y, cheeseEatenAnimation.radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+    
+    // Draw mouse eaten animation
+    if (mouseEatenAnimation) {
+        ctx.globalAlpha = mouseEatenAnimation.opacity;
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(mouseEatenAnimation.x, mouseEatenAnimation.y, mouseEatenAnimation.radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
 }
 
 // Game Loop
@@ -383,7 +420,78 @@ let superPowerTimer = null;
 let mushroomTimer = null;
 let blinkInterval = null;
 
-// Pilz platzieren
+// New variables for mushroom animation
+let mushroomPulse = 0;
+let mushroomPulseDirection = 1;
+
+// Updated render function
+function render() {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear the canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw the grass background
+    ctx.fillStyle = '#90EE90';  // Light green
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw obstacles
+    obstacles.forEach(obs => {
+        ctx.drawImage(obs.type === 'rock' ? rockImg : grassImg, obs.x * CELL_SIZE, obs.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    });
+    
+    // Draw mushroom with pulsing effect
+    if (mushroom) {
+        ctx.save();
+        ctx.translate(mushroom.x * CELL_SIZE + CELL_SIZE / 2, mushroom.y * CELL_SIZE + CELL_SIZE / 2);
+        ctx.scale(1 + mushroomPulse * 0.1, 1 + mushroomPulse * 0.1);
+        ctx.drawImage(mushroomImg, -CELL_SIZE / 2, -CELL_SIZE / 2, CELL_SIZE, CELL_SIZE);
+        ctx.restore();
+        
+        // Update mushroom pulse
+        mushroomPulse += 0.1 * mushroomPulseDirection;
+        if (mushroomPulse >= 1 || mushroomPulse <= 0) {
+            mushroomPulseDirection *= -1;
+        }
+    }
+    
+    // Draw cheese
+    ctx.drawImage(cheeseImg, cheese.x * CELL_SIZE, cheese.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    
+    // Draw mice (with blinking effect when superpowers are active)
+    if (!superPowerActive1 || mouseVisible1) {
+        ctx.drawImage(mouse1Img, mouse1.x * CELL_SIZE, mouse1.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    }
+    if (!superPowerActive2 || mouseVisible2) {
+        ctx.drawImage(mouse2Img, mouse2.x * CELL_SIZE, mouse2.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    }
+    
+    // Draw cat
+    ctx.drawImage(catImg, cat.x * CELL_SIZE, cat.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    
+    // Draw cheese eaten animation
+    if (cheeseEatenAnimation) {
+        ctx.globalAlpha = cheeseEatenAnimation.opacity;
+        ctx.fillStyle = 'yellow';
+        ctx.beginPath();
+        ctx.arc(cheeseEatenAnimation.x, cheeseEatenAnimation.y, cheeseEatenAnimation.radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+    
+    // Draw mouse eaten animation
+    if (mouseEatenAnimation) {
+        ctx.globalAlpha = mouseEatenAnimation.opacity;
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(mouseEatenAnimation.x, mouseEatenAnimation.y, mouseEatenAnimation.radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+
+// Updated placeMushroom function
 function placeMushroom() {
     let x, y;
     do {
@@ -396,6 +504,8 @@ function placeMushroom() {
         obstacles.some(obs => obs.x === x && obs.y === y)
     );
     mushroom = { x, y };
+    mushroomPulse = 0;
+    mushroomPulseDirection = 1;
     
     // Timer zum Entfernen des Pilzes nach 15 Sekunden
     clearTimeout(mushroomTimer);
@@ -469,5 +579,337 @@ function moveCat() {
 function checkCatCollision() {
     if ((cat.x === mouse1.x && cat.y === mouse1.y) || (cat.x === mouse2.x && cat.y === mouse2.y)) {
         endGame("Die Katze hat eine Maus gefangen!");
+    }
+}
+
+// New variables for animations
+let cheeseEatenAnimation = null;
+let mouseEatenAnimation = null;
+
+// Updated moveMouse function without storing last movement
+function moveMouse(mouse, dx, dy) {
+    let newX = mouse.x + dx;
+    let newY = mouse.y + dy;
+    
+    if (newX >= 0 && newX < GRID_SIZE && newY >= 0 && newY < GRID_SIZE) {
+        let superPowerActive = (mouse === mouse1) ? superPowerActive1 : superPowerActive2;
+        if (superPowerActive || !obstacles.some(obs => obs.x === newX && obs.y === newY)) {
+            if (superPowerActive) {
+                obstacles = obstacles.filter(obs => obs.x !== newX || obs.y !== newY);
+            } else if (obstacles.some(obs => obs.x === newX && obs.y === newY)) {
+                catSteps += 5;  // Katze bekommt 5 neue Schritte
+                console.log("Katze bekommt 5 neue Schritte. Aktuelle Schritte:", catSteps);
+            }
+            mouse.x = newX;
+            mouse.y = newY;
+        } else {
+            // Maus hat ein Hindernis berührt, aber sich nicht bewegt
+            catSteps += 5;
+            console.log("Katze bekommt 5 neue Schritte (Hindernis berührt). Aktuelle Schritte:", catSteps);
+        }
+    }
+    
+    checkCollision(mouse);
+}
+
+// Updated checkCollision function with cheese eaten animation
+function checkCollision(mouse) {
+    if (mouse.x === cheese.x && mouse.y === cheese.y) {
+        console.log("Cheese caught!");
+        if (mouse === mouse1) {
+            score++;
+        } else {
+            score += 2;
+        }
+        updateDisplay();
+        if (score % 3 === 0) {
+            mathChallenge();
+        }
+        
+        // Start cheese eaten animation
+        cheeseEatenAnimation = {
+            x: cheese.x * CELL_SIZE + CELL_SIZE / 2,
+            y: cheese.y * CELL_SIZE + CELL_SIZE / 2,
+            radius: 0,
+            opacity: 1
+        };
+        animateCheeseEaten();
+        
+        placeCheese();
+        placeObstacles(Math.min(score, 3));
+        
+        if (Math.random() < 0.2) {
+            placeMushroom();
+        }
+    }
+    
+    if (mushroom && mouse.x === mushroom.x && mouse.y === mushroom.y) {
+        console.log("Magischer Pilz gefunden!");
+        mushroom = null;
+        clearTimeout(mushroomTimer);
+        activateSuperPower(mouse === mouse1 ? 1 : 2);
+    }
+}
+
+// Cheese eaten animation
+function animateCheeseEaten() {
+    if (cheeseEatenAnimation) {
+        cheeseEatenAnimation.radius += 2;
+        cheeseEatenAnimation.opacity -= 0.05;
+        
+        if (cheeseEatenAnimation.opacity <= 0) {
+            cheeseEatenAnimation = null;
+        } else {
+            requestAnimationFrame(animateCheeseEaten);
+        }
+    }
+}
+
+// Updated checkCatCollision function with mouse eaten animation
+function checkCatCollision() {
+    if ((cat.x === mouse1.x && cat.y === mouse1.y) || (cat.x === mouse2.x && cat.y === mouse2.y)) {
+        const eatenMouse = (cat.x === mouse1.x && cat.y === mouse1.y) ? mouse1 : mouse2;
+        
+        // Start mouse eaten animation
+        mouseEatenAnimation = {
+            x: eatenMouse.x * CELL_SIZE + CELL_SIZE / 2,
+            y: eatenMouse.y * CELL_SIZE + CELL_SIZE / 2,
+            radius: 0,
+            opacity: 1
+        };
+        animateMouseEaten();
+        
+        setTimeout(() => {
+            endGame("The cat caught a mouse!");
+        }, 1000);  // Delay end game to allow animation to play
+    }
+}
+
+// Mouse eaten animation
+function animateMouseEaten() {
+    if (mouseEatenAnimation) {
+        mouseEatenAnimation.radius += 3;
+        mouseEatenAnimation.opacity -= 0.03;
+        
+        if (mouseEatenAnimation.opacity <= 0) {
+            mouseEatenAnimation = null;
+        } else {
+            requestAnimationFrame(animateMouseEaten);
+        }
+    }
+}
+
+// Add this function to clear the leaderboard
+function clearLeaderboard() {
+    localStorage.removeItem('highscores');
+    displayHighscores();
+}
+
+// Add event listener for the clear leaderboard button
+document.getElementById('clearLeaderboardButton').addEventListener('click', clearLeaderboard);
+
+// New variables for animations
+let mushroomEatenAnimation = null;
+let objectDestroyedAnimations = [];
+
+// Updated render function
+function render() {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear the canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw the grass background
+    ctx.fillStyle = '#90EE90';  // Light green
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw obstacles
+    obstacles.forEach(obs => {
+        ctx.drawImage(obs.type === 'rock' ? rockImg : grassImg, obs.x * CELL_SIZE, obs.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    });
+    
+    // Draw mushroom with pulsing effect
+    if (mushroom) {
+        ctx.save();
+        ctx.translate(mushroom.x * CELL_SIZE + CELL_SIZE / 2, mushroom.y * CELL_SIZE + CELL_SIZE / 2);
+        ctx.scale(1 + mushroomPulse * 0.1, 1 + mushroomPulse * 0.1);
+        ctx.drawImage(mushroomImg, -CELL_SIZE / 2, -CELL_SIZE / 2, CELL_SIZE, CELL_SIZE);
+        ctx.restore();
+        
+        // Update mushroom pulse
+        mushroomPulse += 0.1 * mushroomPulseDirection;
+        if (mushroomPulse >= 1 || mushroomPulse <= 0) {
+            mushroomPulseDirection *= -1;
+        }
+    }
+    
+    // Draw cheese
+    ctx.drawImage(cheeseImg, cheese.x * CELL_SIZE, cheese.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    
+    // Draw mice (with blinking effect when superpowers are active)
+    if (!superPowerActive1 || mouseVisible1) {
+        ctx.drawImage(mouse1Img, mouse1.x * CELL_SIZE, mouse1.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    }
+    if (!superPowerActive2 || mouseVisible2) {
+        ctx.drawImage(mouse2Img, mouse2.x * CELL_SIZE, mouse2.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    }
+    
+    // Draw cat
+    ctx.drawImage(catImg, cat.x * CELL_SIZE, cat.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    
+    // Draw cheese eaten animation
+    if (cheeseEatenAnimation) {
+        ctx.globalAlpha = cheeseEatenAnimation.opacity;
+        ctx.fillStyle = 'yellow';
+        ctx.beginPath();
+        ctx.arc(cheeseEatenAnimation.x, cheeseEatenAnimation.y, cheeseEatenAnimation.radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+    
+    // Draw mouse eaten animation
+    if (mouseEatenAnimation) {
+        ctx.globalAlpha = mouseEatenAnimation.opacity;
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(mouseEatenAnimation.x, mouseEatenAnimation.y, mouseEatenAnimation.radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+    
+    // Draw mushroom eaten animation
+    if (mushroomEatenAnimation) {
+        ctx.globalAlpha = mushroomEatenAnimation.opacity;
+        ctx.fillStyle = 'purple';
+        ctx.beginPath();
+        ctx.arc(mushroomEatenAnimation.x, mushroomEatenAnimation.y, mushroomEatenAnimation.radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+    
+    // Draw object destroyed animations
+    objectDestroyedAnimations.forEach(anim => {
+        ctx.globalAlpha = anim.opacity;
+        ctx.fillStyle = 'orange';
+        ctx.beginPath();
+        ctx.arc(anim.x, anim.y, anim.radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    });
+}
+
+// Updated checkCollision function
+function checkCollision(mouse) {
+    if (mouse.x === cheese.x && mouse.y === cheese.y) {
+        console.log("Cheese caught!");
+        if (mouse === mouse1) {
+            score++;
+        } else {
+            score += 2;
+        }
+        updateDisplay();
+        if (score % 3 === 0) {
+            mathChallenge();
+        }
+        
+        // Start cheese eaten animation
+        cheeseEatenAnimation = {
+            x: cheese.x * CELL_SIZE + CELL_SIZE / 2,
+            y: cheese.y * CELL_SIZE + CELL_SIZE / 2,
+            radius: 0,
+            opacity: 1
+        };
+        animateCheeseEaten();
+        
+        placeCheese();
+        placeObstacles(Math.min(score, 3));
+        
+        if (Math.random() < 0.2) {
+            placeMushroom();
+        }
+    }
+    
+    if (mushroom && mouse.x === mushroom.x && mouse.y === mushroom.y) {
+        console.log("Magischer Pilz gefunden!");
+        
+        // Start mushroom eaten animation
+        mushroomEatenAnimation = {
+            x: mushroom.x * CELL_SIZE + CELL_SIZE / 2,
+            y: mushroom.y * CELL_SIZE + CELL_SIZE / 2,
+            radius: 0,
+            opacity: 1
+        };
+        animateMushroomEaten();
+        
+        mushroom = null;
+        clearTimeout(mushroomTimer);
+        activateSuperPower(mouse === mouse1 ? 1 : 2);
+    }
+}
+
+// Mushroom eaten animation
+function animateMushroomEaten() {
+    if (mushroomEatenAnimation) {
+        mushroomEatenAnimation.radius += 2;
+        mushroomEatenAnimation.opacity -= 0.05;
+        
+        if (mushroomEatenAnimation.opacity <= 0) {
+            mushroomEatenAnimation = null;
+        } else {
+            requestAnimationFrame(animateMushroomEaten);
+        }
+    }
+}
+
+// Updated moveMouse function
+function moveMouse(mouse, dx, dy) {
+    let newX = mouse.x + dx;
+    let newY = mouse.y + dy;
+    
+    if (newX >= 0 && newX < GRID_SIZE && newY >= 0 && newY < GRID_SIZE) {
+        let superPowerActive = (mouse === mouse1) ? superPowerActive1 : superPowerActive2;
+        if (superPowerActive || !obstacles.some(obs => obs.x === newX && obs.y === newY)) {
+            if (superPowerActive) {
+                obstacles = obstacles.filter(obs => {
+                    if (obs.x === newX && obs.y === newY) {
+                        // Start object destroyed animation
+                        objectDestroyedAnimations.push({
+                            x: obs.x * CELL_SIZE + CELL_SIZE / 2,
+                            y: obs.y * CELL_SIZE + CELL_SIZE / 2,
+                            radius: 0,
+                            opacity: 1
+                        });
+                        animateObjectDestroyed();
+                        return false;
+                    }
+                    return true;
+                });
+            } else if (obstacles.some(obs => obs.x === newX && obs.y === newY)) {
+                catSteps += 5;
+                console.log("Katze bekommt 5 neue Schritte. Aktuelle Schritte:", catSteps);
+            }
+            mouse.x = newX;
+            mouse.y = newY;
+        } else {
+            catSteps += 5;
+            console.log("Katze bekommt 5 neue Schritte (Hindernis berührt). Aktuelle Schritte:", catSteps);
+        }
+    }
+    
+    checkCollision(mouse);
+}
+
+// Object destroyed animation
+function animateObjectDestroyed() {
+    objectDestroyedAnimations = objectDestroyedAnimations.filter(anim => {
+        anim.radius += 1;
+        anim.opacity -= 0.05;
+        
+        return anim.opacity > 0;
+    });
+    
+    if (objectDestroyedAnimations.length > 0) {
+        requestAnimationFrame(animateObjectDestroyed);
     }
 }

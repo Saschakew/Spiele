@@ -1,96 +1,60 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maus und Käse Spiel</title>
+    <title>Labyrinth Game</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
         }
-        .game-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        .game-area {
+        #gameContainer {
             text-align: center;
         }
-        canvas {
-            border: 2px solid #333;
-            border-radius: 5px;
+        #gameCanvas {
+            border: 2px solid black;
         }
-        .info-panel {
-            display: flex;
-            justify-content: space-between;
+        #scoreDisplay {
+            font-size: 24px;
             margin-bottom: 10px;
-            font-size: 18px;
-        }
-        #restartButton {
-            margin-top: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #restartButton:hover {
-            background-color: #45a049;
         }
         #timeBar {
             width: 100%;
             height: 20px;
             background-color: #ddd;
-            border-radius: 10px;
             margin-bottom: 10px;
         }
         #timeBarFill {
             height: 100%;
-            width: 100%;
             background-color: #4CAF50;
-            border-radius: 10px;
-            transition: width 1s linear;
+            width: 100%;
         }
-        .highscores {
-            width: 200px;
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        #highscores {
+            margin-top: 20px;
         }
-        #highscoresList {
-            list-style-type: none;
-            padding: 0;
-        }
-        #highscoresList li {
-            margin-bottom: 5px;
+        #restartButton, #clearLeaderboardButton {
+            font-size: 18px;
+            margin-top: 10px;
+            padding: 5px 10px;
         }
     </style>
 </head>
 <body>
-    <div class="game-container">
-        <div class="game-area">
-            <div class="info-panel">
-                <span id="scoreDisplay">Punkte: 0</span>
-            </div>
-            <div id="timeBar"><div id="timeBarFill"></div></div>
-            <canvas id="gameCanvas" width="600" height="600"></canvas>
-            <button id="restartButton" style="display: none;">Neustart</button>
-        </div>
-        <div class="highscores">
-            <h2>Bestenliste</h2>
+    <div id="gameContainer">
+        <div id="scoreDisplay">Score: 0</div>
+        <div id="timeBar"><div id="timeBarFill"></div></div>
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <button id="restartButton" style="display: none;">Restart</button>
+        <div id="highscores">
+            <h2>Highscores</h2>
             <ol id="highscoresList"></ol>
         </div>
+        <button id="clearLeaderboardButton">Clear Leaderboard</button>
     </div>
     <script src="labyringh.js"></script>
 </body>
