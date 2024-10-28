@@ -633,11 +633,13 @@ const POWERUP_TYPES = {
     PAINT_EXPLOSION: {
         color: '#FF69B4',
         symbol: '💥',
-        duration: 0,
+        duration: 3000,  // Gesamtdauer der Animation
         effect: (player) => {
             const radius = 4;
-            createPaintExplosion(player.x, player.y, radius, player.color);
+            const startTime = Date.now();
+            const cellsToColor = [];
             
+            // Sammle alle zu färbenden Zellen
             for (let y = -radius; y <= radius; y++) {
                 for (let x = -radius; x <= radius; x++) {
                     if (x*x + y*y <= radius*radius) {
@@ -645,15 +647,106 @@ const POWERUP_TYPES = {
                         const newY = Math.floor(player.y) + y;
                         if (newX >= 0 && newX < colorGrid[0].length &&
                             newY >= 0 && newY < colorGrid.length) {
-                            if (colorGrid[newY][newX] === player.oppositeColor()) {
-                                scores[player.oppositeColor()]--;
-                            }
-                            colorGrid[newY][newX] = player.color;
-                            scores[player.color]++;
+                            cellsToColor.push({x: newX, y: newY});
                         }
                     }
                 }
             }
+
+            // Mische die Zellen zufällig für einen natürlicheren Effekt
+            for (let i = cellsToColor.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cellsToColor[i], cellsToColor[j]] = [cellsToColor[j], cellsToColor[i]];
+            }
+
+            player.activeEffects.set('paintexplosion', {
+                particles: [],
+                cellsToColor: cellsToColor,
+                processedCells: 0,
+                update: function(p) {
+                    const elapsed = Date.now() - startTime;
+                    const progress = elapsed / 3000; // 3 Sekunden
+                    
+                    // Berechne, wie viele Zellen in diesem Frame gefärbt werden sollen
+                    const targetCells = Math.floor(cellsToColor.length * progress);
+                    
+                    // Färbe neue Zellen
+                    while (this.processedCells < targetCells && this.processedCells < cellsToColor.length) {
+                        const cell = cellsToColor[this.processedCells];
+                        if (colorGrid[cell.y][cell.x] === player.oppositeColor()) {
+                            scores[player.oppositeColor()]--;
+                        }
+                        if (colorGrid[cell.y][cell.x] !== player.color) {
+                            colorGrid[cell.y][cell.x] = player.color;
+                            scores[player.color]++;
+                            
+                            // Explosionseffekt für jede gefärbte Zelle
+                            createPaintExplosion(cell.x, cell.y, 0.3, player.color);
+                            
+                            // Partikeleffekt
+                            for (let i = 0; i < 3; i++) {
+                                p.push({
+                                    x: cell.x * CELL_SIZE + CELL_SIZE/2,
+                                    y: cell.y * CELL_SIZE + CELL_SIZE/2,
+                                    vx: (Math.random() - 0.5) * 3,
+                                    vy: (Math.random() - 0.5) * 3,
+                                    lifetime: 500 + Math.random() * 500,
+                                    color: player.color === 'yellow' ? '#FFD700' : '#90EE90',
+                                    size: Math.random() * 4 + 2
+                                });
+                            }
+                        }
+                        this.processedCells++;
+                    }
+
+                    // Update Partikel
+                    for (let i = p.length - 1; i >= 0; i--) {
+                        p[i].lifetime -= 16;
+                        p[i].x += p[i].vx;
+                        p[i].y += p[i].vy;
+                        p[i].vy += 0.1; // Gravitation
+                        if (p[i].lifetime <= 0) p.splice(i, 1);
+                    }
+
+                    // Beende den Effekt nach 3 Sekunden
+                    if (elapsed >= 3000) {
+                        player.activeEffects.delete('paintexplosion');
+                    }
+                },
+                draw: function(p) {
+                    // Zeichne Partikel
+                    p.forEach(particle => {
+                        ctx.save();
+                        ctx.globalAlpha = particle.lifetime / 1000;
+                        ctx.fillStyle = particle.color;
+                        ctx.shadowColor = particle.color;
+                        ctx.shadowBlur = 10;
+                        ctx.beginPath();
+                        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    });
+
+                    // Zeichne Explosionsring um das Pokemon
+                    const elapsed = Date.now() - startTime;
+                    const progress = elapsed / 3000;
+                    const ringRadius = CELL_SIZE * radius * progress;
+                    
+                    ctx.save();
+                    ctx.globalAlpha = 0.3 * (1 - progress);
+                    ctx.strokeStyle = player.color === 'yellow' ? '#FFD700' : '#90EE90';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(
+                        player.visualX + CELL_SIZE/2,
+                        player.visualY + CELL_SIZE/2,
+                        ringRadius,
+                        0, Math.PI * 2
+                    );
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
             createFloatingText("Paint Explosion!", player.x * CELL_SIZE, player.y * CELL_SIZE - 20, '#FF69B4');
         }
     },
